@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Логическая Аркада: Управление Трафиком (Бесконечность)</title>
+    <title>Crystal Swap v10.0: Финальная Версия с Исправлением Ошибки</title>
     <style>
         body {
             margin: 0;
@@ -11,639 +11,892 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #34495e;
-            font-family: Arial, sans-serif;
+            background-color: #2c3e50;
+            font-family: 'Arial', sans-serif;
             color: #ecf0f1;
+            touch-action: none; 
+            overflow: hidden;
         }
         canvas {
-            border: 5px solid #2c3e50;
-            background-color: #7f8c8d; 
+            border: 5px solid #34495e;
+            background-color: #1a1a1a; 
+            box-shadow: 0 0 20px rgba(100, 100, 255, 0.5);
+            width: 500px;
+            height: 500px;
         }
-        #hud {
+
+        #game-container {
+            position: relative;
+        }
+
+        /* HUD */
+        #hud-container {
             position: absolute;
             top: 10px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(44, 62, 80, 0.8);
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-size: 18px;
-            text-align: center;
-            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 20px;
+            border: 2px solid #f1c40f;
+            z-index: 100;
+            display: flex;
+            gap: 20px;
         }
-        #shop-button {
-            background-color: #f39c12; 
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-left: 15px;
-            font-weight: bold;
-            transition: background-color 0.2s;
-        }
-        #shop-button:hover {
-            background-color: #e67e22;
-        }
-        #shop-container {
+
+        /* Панель паузы */
+        #pause-overlay {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(44, 62, 80, 0.95);
-            border: 3px solid #f39c12;
-            border-radius: 10px;
-            padding: 20px;
-            display: none;
-            flex-direction: column;
-            width: 300px;
-            z-index: 30;
-        }
-        .upgrade-item {
-            display: flex;
-            flex-direction: column; /* Изменено для лучшего отображения */
-            align-items: flex-start;
-            padding: 10px 0;
-            border-bottom: 1px solid #555;
-        }
-        .item-info {
-            display: flex;
-            justify-content: space-between;
+            top: 0;
+            left: 0;
             width: 100%;
-            margin-bottom: 5px;
-        }
-        .buy-button {
-            padding: 8px 10px;
-            background-color: #2ecc71;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            align-self: flex-end; /* Кнопка справа */
-        }
-        .buy-button:disabled {
-            background-color: #e74c3c;
-            cursor: not-allowed;
-        }
-        .close-shop {
-            align-self: flex-end;
-            background: none;
-            border: none;
-            color: white;
-            font-size: 24px;
-            cursor: pointer;
-        }
-        #game-over-screen {
-            position: absolute;
-            width: 600px;
-            height: 600px;
-            background-color: rgba(0, 0, 0, 0.9);
-            color: white;
-            display: none; 
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            font-size: 30px;
-            border: 5px solid #e74c3c;
-            text-align: center;
-            z-index: 20;
+            z-index: 200;
+            pointer-events: auto;
         }
-        #restart-button {
-            margin-top: 20px;
+        .pause-button, .menu-button {
             padding: 10px 20px;
+            margin: 10px;
             font-size: 24px;
             cursor: pointer;
-            background-color: #2ecc71;
-            border: none;
-            border-radius: 5px;
+            border: 2px solid #f1c40f;
+            background: #2ecc71;
             color: white;
+            border-radius: 8px;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="600" height="600"></canvas>
-
-    <div id="hud">
-        Монеты: <span id="hud-money" style="color:#f1c40f;">0</span> |
-        Пропущено: <span id="hud-passed" style="color:#2ecc71;">0</span> |
-        Аварии: <span id="hud-crashes" style="color:#e74c3c;">0</span> / <span id="max-crashes">3</span>
-        <button id="shop-button">🛒 Магазин</button>
-    </div>
-    
-    <div id="shop-container">
-        <button class="close-shop">X</button>
-        <h3>Магазин Улучшений</h3>
-        
-        <div class="upgrade-item" id="upgrade-road">
-            <div class="item-info">
-                <span>**Улучшение Дорог** (Две полосы!)</span>
-                <button class="buy-button" data-cost="50" data-upgrade="road">Купить (50 💰)</button>
-            </div>
-            <p style="font-size:12px; margin:0; color:#aaa;">*Увеличивает вместимость перекрестка. Накапливаемый доход увеличивается.</p>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="500" height="500"></canvas>
+        <div id="hud-container">
+            🎯 Цель: <span id="target-value">0</span>
+            ✨ Очки: <span id="score-value">0</span>
+            <button id="pause-button">⏸️</button>
         </div>
-        
-        <div class="upgrade-item" id="upgrade-city">
-            <div class="item-info">
-                <span>**Городская развязка** (Много дорог и светофоров!)</span>
-                <button class="buy-button" data-cost="250" data-upgrade="city">Купить (250 💰)</button>
-            </div>
-            <p style="font-size:12px; margin:0; color:#aaa;">*Сильно увеличивает поток машин и сложность. Больше машин = больше денег!</p>
-        </div>
-    </div>
 
-    <div id="game-over-screen">
-        <h2 style="color: #e74c3c;">💥 ИГРА ОКОНЧЕНА. Слишком много аварий.</h2>
-        <p>Вы пропустили: <span id="final-passed">0</span> машин.</p>
-        <p style="font-size: 20px; color: #aaa;">Спасибо за управление трафиком!</p>
-        <button id="restart-button">Начать заново</button>
+        <div id="pause-overlay" style="display: none;">
+            <h2>Пауза</h2>
+            <button class="pause-button" onclick="togglePause()">Продолжить</button>
+            <button class="menu-button" onclick="goToMenu()">В меню (Сброс прогресса)</button>
+        </div>
     </div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const shopButton = document.getElementById('shop-button');
-        const shopContainer = document.getElementById('shop-container');
-        const closeShopButton = document.querySelector('.close-shop');
-        const upgradeRoadButton = document.querySelector('.buy-button[data-upgrade="road"]');
-        const upgradeCityButton = document.querySelector('.buy-button[data-upgrade="city"]');
-        const gameOverScreen = document.getElementById('game-over-screen');
-        const restartButton = document.getElementById('restart-button');
+        // ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+        let canvas, ctx, scoreValue, targetValue, pauseOverlay, pauseButton;
+
+        // --- КОНФИГУРАЦИЯ ИГРЫ ---
+        const GRID_SIZE = 8;
+        const CANVAS_SIZE = 500;
+        const CELL_SIZE = CANVAS_SIZE / GRID_SIZE;
+        const CRYSTAL_TYPES = 6; 
         
-        const MAX_CRASHES = 3; 
+        // Цвета
+        const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#34495e'];
+        const ELECTRIC_COLOR = '#ecf0f1'; 
+        const ENERGY_COLOR = '#ff00ff'; 
+        const BOOM_COLOR = '#ffff00'; 
 
-        let game;
+        // Состояния игры
+        let gameState = 'MENU';
         
-        // --- 🚥 КЛАССЫ СУЩНОСТЕЙ ---
+        let grid = []; 
+        let currentLevel = 1;
+        let score = 0;
+        let isProcessing = false; 
 
-        class Car {
-            constructor(road, lane) {
-                this.road = road;
-                this.lane = lane;
-                this.size = 30;
-                this.width = road === 'horizontal' ? this.size * 1.5 : this.size;
-                this.height = road === 'horizontal' ? this.size : this.size * 1.5;
-                this.color = this.getRandomColor();
-                this.speed = 1 + Math.random() * 1.5; 
-                this.isCrashed = false;
+        // --- ДАННЫЕ УРОВНЕЙ ---
+        const LEVELS = [
+            { id: 1, target: 1000, color: '#2ecc71', unlocked: true },
+            { id: 2, target: 2500, color: '#3498db', unlocked: false },
+            { id: 3, target: 4000, color: '#f1c40f', unlocked: false },
+            { id: 4, target: 6000, color: '#e74c3c', unlocked: false },
+            { id: 5, target: 8500, color: '#9b59b6', unlocked: false },
+            { id: 6, target: 11000, color: '#34495e', unlocked: false },
+            { id: 7, target: 14000, color: '#2ecc71', unlocked: false },
+            { id: 8, target: 17000, color: '#3498db', unlocked: false },
+            { id: 9, target: 20000, color: '#f1c40f', unlocked: false },
+            { id: 10, target: 25000, color: '#e74c3c', unlocked: false },
+        ];
+        
+        // --- КЛАСС КРИСТАЛЛА ДЛЯ АНИМАЦИИ ---
+        class Crystal {
+            constructor(r, c, type, originalType) {
+                this.r = r; 
+                this.c = c; 
+                this.type = type; 
+                this.originalType = originalType; 
+                this.yOffset = 0; 
+                this.rotation = 0; 
+                this.scale = 1; 
+                this.isBooming = false;
                 
-                if (road === 'horizontal') {
-                    this.x = Math.random() < 0.5 ? -this.width : canvas.width;
-                    this.direction = this.x < 0 ? 1 : -1;
-                } else {
-                    this.y = Math.random() < 0.5 ? -this.height : canvas.height;
-                    this.direction = this.y < 0 ? 1 : -1;
-                }
-
-                this.setInitialPosition();
+                this.targetR = r; 
+                this.targetC = c; 
             }
+        }
 
-            getRandomColor() {
-                const colors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#9b59b6', '#34495e'];
-                return colors[Math.floor(Math.random() * colors.length)];
-            }
-            
-            setInitialPosition() {
-                // Если куплено "Городская развязка", используем широкую дорогу (150)
-                const roadWidth = game.upgrades.cityUpgrade ? 150 : (game.upgrades.roadUpgrade ? 150 : 100);
-                const roadStart = (canvas.width - roadWidth) / 2;
-                
-                const hasTwoLanes = game.upgrades.roadUpgrade || game.upgrades.cityUpgrade;
+        // --- DRAG AND DROP ПЕРЕМЕННЫЕ ---
+        let dragInfo = null; 
+        const SWAP_THRESHOLD = CELL_SIZE * 0.4; 
+        let animationFrame = null;
 
-                if (this.road === 'horizontal') {
-                    if (!hasTwoLanes) {
-                        this.y = this.direction === 1 ? roadStart + 50 : roadStart + 0;
-                    } else {
-                        const y_offset = this.lane === 1 ? 50 : 20;
-                        this.y = this.direction === 1 ? roadStart + roadWidth - y_offset : roadStart + y_offset - this.height;
-                    }
-                } else { // vertical
-                    if (!hasTwoLanes) {
-                        this.x = this.direction === 1 ? roadStart + 0 : roadStart + 50;
-                    } else {
-                        const x_offset = this.lane === 1 ? 50 : 20;
-                        this.x = this.direction === 1 ? roadStart + x_offset - this.width : roadStart + roadWidth - x_offset;
-                    }
-                }
-            }
+        // --- ИНИЦИАЛИЗАЦИЯ И ЗАПУСК УРОВНЯ ---
 
-            getRect() {
-                return { x: this.x, y: this.y, width: this.width, height: this.height };
-            }
+        function initLevel(levelId) {
+            currentLevel = levelId;
+            score = 0;
+            isProcessing = false;
+            dragInfo = null;
 
-            update(trafficLight) {
-                if (this.isCrashed) return;
+            const target = LEVELS.find(l => l.id === levelId).target;
+            targetValue.textContent = target;
 
-                const isMoving = trafficLight.isGreen || !this.isApproachingStop(trafficLight);
-                
-                if (isMoving) {
-                    if (this.road === 'horizontal') {
-                        this.x += this.speed * this.direction;
-                    } else {
-                        this.y += this.speed * this.direction;
-                    }
+            grid = [];
+            for (let r = 0; r < GRID_SIZE; r++) {
+                grid[r] = [];
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let type;
+                    do {
+                        type = Math.floor(Math.random() * CRYSTAL_TYPES);
+                    } while (checkMatchAtStart(r, c, type));
+                    grid[r][c] = new Crystal(r, c, type, type);
+                    grid[r][c].yOffset = -r * CELL_SIZE; 
                 }
             }
             
-            isApproachingStop(trafficLight) {
-                if (trafficLight.isGreen) return false;
-                
-                const roadWidth = game.upgrades.cityUpgrade ? 150 : (game.upgrades.roadUpgrade ? 150 : 100);
-                const roadStart = (canvas.width - roadWidth) / 2;
-                const crossEnd = roadStart + roadWidth;
+            updateHUD();
+            gameState = 'PLAYING';
+            document.getElementById('hud-container').style.display = 'flex';
+            if (!animationFrame) {
+                animationFrame = requestAnimationFrame(drawGame);
+            }
+        }
+        
+        function checkMatchAtStart(r, c, type) {
+            if (c >= 2 && grid[r][c - 1] && grid[r][c - 1].type === type && grid[r][c - 2] && grid[r][c - 2].type === type) return true;
+            if (r >= 2 && grid[r - 1][c] && grid[r - 1][c].type === type && grid[r - 2][c] && grid[r - 2][c].type === type) return true;
+            return false;
+        }
 
-                if (this.road === 'horizontal') {
-                    if (this.direction === 1) {
-                        if (this.x > crossEnd) return false; 
-                        if (this.x + this.width > roadStart - 5) return true;
-                    } else {
-                         if (this.x < roadStart) return false;
-                         if (this.x < crossEnd + 5) return true; 
-                    }
-                } else { 
-                    if (this.direction === 1) {
-                         if (this.y > crossEnd) return false; 
-                         if (this.y + this.height > roadStart - 5) return true;
-                    } else {
-                         if (this.y < roadStart) return false;
-                         if (this.y < crossEnd + 5) return true; 
-                    }
-                }
-                return false;
+        // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ЗАПУСКА ИГРЫ (ГАРАНТИРУЕТ ЭКРАН) ---
+
+        function startGame() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            scoreValue = document.getElementById('score-value');
+            targetValue = document.getElementById('target-value');
+            pauseOverlay = document.getElementById('pause-overlay');
+            pauseButton = document.getElementById('pause-button');
+            
+            setupEventListeners();
+            
+            // Запускаем сразу первый уровень, чтобы экран появился
+            initLevel(1); 
+            
+            if (!animationFrame) {
+                animationFrame = requestAnimationFrame(drawGame);
             }
 
-            draw() {
-                // Основной кузов
-                ctx.fillStyle = this.color;
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-                
-                const isHorizontal = this.road === 'horizontal';
-                
-                // 1. Колеса (Черные круги)
-                ctx.fillStyle = '#333';
-                if (isHorizontal) {
-                    const wheelY = this.y + this.height - 5;
-                    ctx.fillRect(this.x + 5, wheelY, 5, 5); 
-                    ctx.fillRect(this.x + this.width - 10, wheelY, 5, 5); 
-                } else {
-                    const wheelX = this.x + this.width - 5;
-                    ctx.fillRect(wheelX, this.y + 5, 5, 5); 
-                    ctx.fillRect(wheelX, this.y + this.height - 10, 5, 5); 
+            window.onbeforeunload = function() {
+                if (gameState === 'PLAYING' || gameState === 'PAUSED') {
+                    return "Ваш текущий прогресс будет потерян, если вы покинете игру.";
                 }
+            };
+        }
 
-                // 2. Окна (Светло-голубой)
-                ctx.fillStyle = '#ADD8E6';
-                if (isHorizontal) {
-                    ctx.fillRect(this.x + 5, this.y + 5, this.width - 10, 10);
-                } else {
-                    ctx.fillRect(this.x + 5, this.y + 5, 10, this.height - 10);
-                }
+        // --- ОСТАЛЬНЫЕ ФУНКЦИИ УПРАВЛЕНИЯ ИГРОЙ (Без изменений) ---
 
-                // 3. Фары (Желтый/Красный)
-                if (!this.isCrashed) {
-                    const lightColor = this.direction === 1 ? '#FFFF00' : '#FF0000'; 
-                    ctx.fillStyle = lightColor;
-                    if (isHorizontal) {
-                        if (this.direction === 1) ctx.fillRect(this.x + this.width - 5, this.y + 5, 5, 5);
-                        else ctx.fillRect(this.x, this.y + 5, 5, 5); 
-                    } else {
-                        if (this.direction === 1) ctx.fillRect(this.x + 5, this.y + this.height - 5, 5, 5);
-                        else ctx.fillRect(this.x + 5, this.y, 5, 5);
-                    }
-                }
+        function togglePause() {
+            if (gameState === 'PLAYING') {
+                gameState = 'PAUSED';
+                pauseOverlay.style.display = 'flex';
+            } else if (gameState === 'PAUSED') {
+                gameState = 'PLAYING';
+                pauseOverlay.style.display = 'none';
+            }
+        }
 
-                // Авария
-                if (this.isCrashed) {
-                    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-                    ctx.font = '20px Arial';
-                    ctx.fillText('💥', this.x + 5, this.y + this.height / 2 + 5);
+        function goToMenu() {
+            if (gameState === 'PAUSED') {
+                 if (confirm("Вы уверены? Весь текущий прогресс будет потерян.")) {
+                    gameState = 'MENU';
+                    pauseOverlay.style.display = 'none';
+                    score = 0;
+                    grid = [];
+                    currentLevel = 1;
+                    LEVELS.forEach((l, i) => l.unlocked = (i === 0));
+                    updateHUD();
+                    document.getElementById('hud-container').style.display = 'none';
                 }
             }
         }
 
-        class TrafficLight {
-            constructor(road, x, y) {
-                this.road = road;
-                this.x = x;
-                this.y = y;
-                this.size = 20;
-                this.isGreen = road === 'vertical' ? true : false;
-            }
+        // --- ОТРИСОВКА ИГРЫ (Без изменений) ---
 
-            draw() {
-                ctx.fillStyle = '#333';
-                ctx.fillRect(this.x, this.y, this.size, this.size * 3);
-                
-                const color = this.isGreen ? '#2ecc71' : '#e74c3c';
-                const yOffset = this.isGreen ? this.size * 2 : 0;
-
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(this.x + this.size / 2, this.y + this.size / 2 + yOffset, this.size / 3, 0, Math.PI * 2);
-                ctx.fill();
-            }
-
-            toggle() {
-                this.isGreen = !this.isGreen;
-            }
-        }
-
-        // --- 🕹️ ГЛАВНЫЙ КЛАСС ИГРЫ ---
-
-        class Game {
-            constructor() {
-                this.cars = [];
-                this.trafficLights = [
-                    new TrafficLight('horizontal', 240, 200),
-                    new TrafficLight('vertical', 350, 200)
-                ];
-                this.money = 0;
-                this.passedCount = 0;
-                this.crashCount = 0;
-                this.isRunning = true;
-                this.spawnTimer = 0;
-                this.lastToggleTime = Date.now();
-                this.initialSpawnRate = 40;
-                
-                this.upgrades = {
-                    roadUpgrade: false, // 50 монет
-                    cityUpgrade: false, // 250 монет
-                };
-            }
+        function drawGame() {
+            if (!ctx) return; 
             
-            // --- ЛОГИКА МАГАЗИНА ---
-            buyUpgrade(upgradeType, cost) {
-                if (this.money < cost) return false;
-                
-                if (upgradeType === 'road' && !this.upgrades.roadUpgrade) {
-                    this.money -= cost;
-                    this.upgrades.roadUpgrade = true;
-                    upgradeRoadButton.disabled = true;
-                    upgradeRoadButton.textContent = 'КУПЛЕНО!';
-                    this.updateTrafficLightPositions();
-                    return true;
+            ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            if (gameState === 'MENU') {
+                drawMap();
+            } else {
+                ctx.fillStyle = '#1a1a1a'; 
+                ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+                if (gameState === 'PLAYING') {
+                    updateAnimations();
                 }
-                
-                if (upgradeType === 'city' && !this.upgrades.cityUpgrade) {
-                    this.money -= cost;
-                    this.upgrades.cityUpgrade = true;
-                    
-                    // Активируем эффект: двойные дороги И ускоренный трафик
-                    this.upgrades.roadUpgrade = true; // "Много дорог" включает и две полосы
-                    this.initialSpawnRate = 20; // Ускоряем спавн в 2 раза
-                    
-                    upgradeRoadButton.disabled = true; // Делаем "Больше дорог" неактивным
-                    upgradeRoadButton.textContent = 'КУПЛЕНО (часть)';
-                    upgradeCityButton.disabled = true;
-                    upgradeCityButton.textContent = 'КУПЛЕНО!';
-                    
-                    this.updateTrafficLightPositions();
-                    return true;
-                }
-                return false;
-            }
-            
-            updateTrafficLightPositions() {
-                 const roadWidth = this.upgrades.cityUpgrade ? 150 : (this.upgrades.roadUpgrade ? 150 : 100);
-                 const roadStart = (canvas.width - roadWidth) / 2;
-                 this.trafficLights.find(l => l.road === 'horizontal').x = roadStart - 10 - 20;
-                 this.trafficLights.find(l => l.road === 'vertical').x = roadStart + roadWidth + 10;
-            }
-            // --- КОНЕЦ ЛОГИКИ МАГАЗИНА ---
 
-            handleInput(mouseX, mouseY) {
-                if (!this.isRunning || shopContainer.style.display === 'flex') return;
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        const crystal = grid[r][c];
 
-                const now = Date.now();
-                if (now - this.lastToggleTime < 500) return;
+                        if (!crystal) continue;
 
-                for (const light of this.trafficLights) {
-                    if (mouseX > light.x && mouseX < light.x + light.size &&
-                        mouseY > light.y && mouseY < light.y + light.size * 3) {
-                        
-                        const otherLight = this.trafficLights.find(l => l !== light);
-                        if (!light.isGreen && otherLight.isGreen) {
-                             otherLight.toggle();
-                             light.toggle();
-                             this.lastToggleTime = now;
-                             return;
+                        const drawX = crystal.c * CELL_SIZE + (crystal.targetC - crystal.c) * CELL_SIZE;
+                        const drawY = crystal.r * CELL_SIZE + (crystal.targetR - crystal.r) * CELL_SIZE + crystal.yOffset;
+
+                        if (dragInfo && dragInfo.startR === r && dragInfo.startC === c) {
+                             const dx = dragInfo.currentX - dragInfo.startX;
+                             const dy = dragInfo.currentY - dragInfo.startY;
+                             const maxOffset = CELL_SIZE * 0.5;
+                             const limitedDx = Math.max(-maxOffset, Math.min(maxOffset, dx));
+                             const limitedDy = Math.max(-maxOffset, Math.min(maxOffset, dy));
+                             
+                             drawCrystal(dragInfo.startC * CELL_SIZE + limitedDx, dragInfo.startR * CELL_SIZE + limitedDy, crystal.type, crystal.originalType, 1, 0, false);
+                        } else {
+                            drawCrystal(drawX, drawY, crystal.type, crystal.originalType, crystal.scale, crystal.rotation, crystal.isBooming);
                         }
                     }
                 }
+
+                if (dragInfo) {
+                    ctx.strokeStyle = '#ecf0f1'; 
+                    ctx.lineWidth = 4;
+                    ctx.strokeRect(dragInfo.startC * CELL_SIZE + 2, dragInfo.startR * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                }
             }
 
-            spawnCar() {
-                const roadType = Math.random() < 0.5 ? 'horizontal' : 'vertical';
-                let lane = 1; 
-                
-                const hasTwoLanes = this.upgrades.roadUpgrade || this.upgrades.cityUpgrade;
+            animationFrame = requestAnimationFrame(drawGame);
+        }
 
-                if (hasTwoLanes) {
-                    lane = Math.random() < 0.5 ? 1 : 2; 
+        function drawMap() {
+            ctx.fillStyle = '#27ae60'; 
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+            
+            ctx.fillStyle = '#e67e22'; 
+            ctx.fillRect(50, 400, 20, 50);
+            ctx.fillRect(430, 380, 30, 70);
+            ctx.fillStyle = '#2ecc71'; 
+            ctx.beginPath();
+            ctx.arc(60, 400, 30, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(445, 380, 40, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ecf0f1';
+            ctx.font = '36px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Карта Уровней', CANVAS_SIZE / 2, 50);
+            
+            const positions = [
+                { x: 100, y: 150 }, { x: 250, y: 120 }, { x: 400, y: 150 },
+                { x: 400, y: 300 }, { x: 250, y: 350 }, { x: 100, y: 300 },
+                { x: 100, y: 450 }, { x: 250, y: 420 }, { x: 400, y: 450 },
+                { x: 250, y: 230 }
+            ];
+
+            LEVELS.forEach((level, index) => {
+                const pos = positions[index];
+                const radius = 25;
+                const isUnlocked = level.unlocked;
+                const isCurrent = level.id === currentLevel;
+
+                if (index > 0) {
+                    const prevPos = positions[index - 1];
+                    ctx.strokeStyle = isUnlocked ? '#f1c40f' : '#7f8c8d';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(prevPos.x, prevPos.y);
+                    ctx.lineTo(pos.x, pos.y);
+                    ctx.stroke();
                 }
 
-                this.cars.push(new Car(roadType, lane));
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+
+                if (isUnlocked) {
+                    ctx.fillStyle = level.color;
+                } else {
+                    ctx.fillStyle = '#95a5a6';
+                }
+
+                ctx.fill();
+
+                if (isCurrent && gameState !== 'PLAYING') {
+                    ctx.strokeStyle = '#f1c40f';
+                    ctx.lineWidth = 5;
+                    ctx.stroke();
+                }
+
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 18px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(level.id, pos.x, pos.y + 6);
+            });
+        }
+
+        function drawCrystal(x, y, type, originalType, scale, rotation, isBooming) {
+            let color;
+            let glow = false;
+            let shadowColor = 'transparent';
+            
+            if (isBooming) {
+                color = BOOM_COLOR;
+            } else if (type === 6) {
+                color = ELECTRIC_COLOR;
+                glow = true;
+                shadowColor = originalType >= 0 && originalType < COLORS.length ? COLORS[originalType] : ELECTRIC_COLOR;
+            } else if (type === 7) {
+                color = ENERGY_COLOR;
+                glow = true;
+                shadowColor = ENERGY_COLOR;
+            } else {
+                color = COLORS[type];
             }
 
-            checkCollisions() {
-                // ... (логика столкновений остается без изменений)
-                 for (let i = 0; i < this.cars.length; i++) {
-                    const car1 = this.cars[i];
-                    if (car1.isCrashed) continue;
+            const size = CELL_SIZE * 0.7 * scale;
+            const cx = x + CELL_SIZE / 2;
+            const cy = y + CELL_SIZE / 2;
+            
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(rotation);
 
-                    for (let j = i + 1; j < this.cars.length; j++) {
-                        const car2 = this.cars[j];
-                        if (car2.isCrashed) continue;
+            if (glow && !isBooming) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = shadowColor;
+            }
+
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(0, -size / 2); 
+            ctx.lineTo(size / 3, -size / 4);
+            ctx.lineTo(size / 2, 0); 
+            ctx.lineTo(size / 3, size / 4);
+            ctx.lineTo(0, size / 2); 
+            ctx.lineTo(-size / 3, size / 4);
+            ctx.lineTo(-size / 2, 0); 
+            ctx.lineTo(-size / 3, -size / 4);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.shadowBlur = 0; 
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.beginPath();
+            ctx.moveTo(0, -size / 2);
+            ctx.lineTo(size / 3, -size / 4);
+            ctx.lineTo(0, 0);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.restore();
+            ctx.shadowColor = 'transparent';
+        }
+
+
+        // --- ФУНКЦИЯ АНИМАЦИИ: БЛОК B (Строгий контроль ссылок) ---
+
+        function updateAnimations() {
+            if (gameState !== 'PLAYING') return;
+
+            const speed = CELL_SIZE / 8; 
+            let processingComplete = true;
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const crystal = grid[r][c];
+                    if (!crystal) continue;
+
+                    // 1. Анимация отката/сдвига к целевой позиции
+                    if (crystal.r !== crystal.targetR || crystal.c !== crystal.targetC) {
+                        processingComplete = false;
                         
-                        if (car1.road !== car2.road) {
-                            if (this.isColliding(car1.getRect(), car2.getRect())) {
-                                this.handleCrash(car1, car2);
-                                return;
+                        // Сохраняем координаты ячейки, из которой мы начинаем анимацию
+                        // ВАЖНО: startR/startC - это место, где ссылка на кристалл находится в grid
+                        const startR = Math.round(crystal.r); 
+                        const startC = Math.round(crystal.c);
+
+                        // Сдвиг по R и C
+                        const dr = crystal.targetR - crystal.r;
+                        if (Math.abs(dr) > 0) {
+                            const moveR = Math.min(speed, Math.abs(dr));
+                            crystal.r += dr > 0 ? moveR : -moveR;
+                        }
+                        
+                        const dc = crystal.targetC - crystal.c;
+                        if (Math.abs(dc) > 0) {
+                            const moveC = Math.min(speed, Math.abs(dc));
+                            crystal.c += dc > 0 ? moveC : -moveC;
+                        }
+
+                        // Проверка, что мы почти достигли цели, округление
+                        if (Math.abs(crystal.targetR - crystal.r) < speed) {
+                            crystal.r = crystal.targetR;
+                        }
+                        if (Math.abs(crystal.targetC - crystal.c) < speed) {
+                            crystal.c = crystal.targetC;
+                        }
+
+                        // !!! БЛОК B: СТРОГИЙ КОНТРОЛЬ ССЫЛОК ПРИ ЗАВЕРШЕНИИ ДВИЖЕНИЯ
+                        if (crystal.r === crystal.targetR && crystal.c === crystal.targetC) {
+                            // Кристалл достиг своей цели (targetR/targetC)
+                            
+                            // Мы перемещаем кристалл в grid только если он пришел из ДРУГОЙ ячейки.
+                            if (startR !== crystal.targetR || startC !== crystal.targetC) {
+                                
+                                // 1. Если в ячейке, откуда он пришел (startR/startC), все еще лежит ссылка на этот кристалл, удаляем ее
+                                if (startR >= 0 && startR < GRID_SIZE && startC >= 0 && startC < GRID_SIZE && grid[startR][startC] === crystal) {
+                                    grid[startR][startC] = null; 
+                                }
+                                
+                                // 2. Убеждаемся, что в целевой ячейке (targetR/targetC) стоит именно этот кристалл
+                                grid[crystal.targetR][crystal.targetC] = crystal; 
+                            }
+                        }
+                        // КОНЕЦ БЛОКА B
+                    }
+
+                    // 2. Анимация падения (Без изменений)
+                    if (crystal.yOffset !== 0) {
+                        processingComplete = false;
+                        const distance = Math.abs(crystal.yOffset);
+                        const move = Math.min(speed, distance);
+                        
+                        if (crystal.yOffset > 0) {
+                            crystal.yOffset -= move;
+                        } else {
+                            crystal.yOffset += move;
+                        }
+                        
+                        crystal.rotation += Math.PI / 16;
+                        if (Math.abs(crystal.yOffset) < speed) {
+                            crystal.yOffset = 0;
+                            crystal.rotation = 0;
+                        }
+                    } 
+
+                    // 3. Анимация исчезновения (Без изменений)
+                    if (crystal.isBooming) {
+                        processingComplete = false;
+                        crystal.scale -= 0.1;
+                        crystal.rotation += Math.PI / 10;
+                        if (crystal.scale <= 0) {
+                            if (grid[r] && grid[r][c] === crystal) {
+                                grid[r][c] = null;
                             }
                         }
                     }
                 }
             }
-
-            isColliding(r1, r2) {
-                const collisionPadding = 5;
-                return r1.x + collisionPadding < r2.x + r2.width - collisionPadding &&
-                       r1.x + r1.width - collisionPadding > r2.x + collisionPadding &&
-                       r1.y + collisionPadding < r2.y + r2.height - collisionPadding &&
-                       r1.y + r1.height - collisionPadding > r2.y + collisionPadding;
-            }
-
-            handleCrash(car1, car2) {
-                car1.isCrashed = true;
-                car2.isCrashed = true;
-                this.crashCount++;
-                
-                this.money = Math.max(0, this.money - 5);
-                
-                setTimeout(() => {
-                    this.cars = this.cars.filter(c => !c.isCrashed);
-                }, 1000); 
-
-                // Возвращаем Game Over при достижении лимита аварий
-                if (this.crashCount >= MAX_CRASHES) {
-                    this.endGame();
-                }
-            }
             
-            endGame() {
-                 this.isRunning = false;
-                 document.getElementById('final-passed').textContent = this.passedCount;
-                 gameOverScreen.style.display = 'flex';
-            }
-
-            update() {
-                if (!this.isRunning || shopContainer.style.display === 'flex') return;
-
-                this.spawnTimer++;
-                // Использование переменной скорости спавна
-                if (this.spawnTimer > this.initialSpawnRate) { 
-                    this.spawnCar();
-                    this.spawnTimer = 0;
-                }
-                
-                const lightH = this.trafficLights.find(l => l.road === 'horizontal');
-                const lightV = this.trafficLights.find(l => l.road === 'vertical');
-
-                for (let i = this.cars.length - 1; i >= 0; i--) {
-                    const car = this.cars[i];
-                    const currentLight = car.road === 'horizontal' ? lightH : lightV;
-                    car.update(currentLight);
-
-                    if (!car.isCrashed) {
-                        // Проверка, проехала ли машина (доход 1 монета)
-                        if (car.road === 'horizontal' && ((car.direction === 1 && car.x > canvas.width) || (car.direction === -1 && car.x < -car.width))) {
-                            this.passedCount++;
-                            this.money += 1;
-                            this.cars.splice(i, 1);
-                        } else if (car.road === 'vertical' && ((car.direction === 1 && car.y > canvas.height) || (car.direction === -1 && car.y < -car.height))) {
-                            this.passedCount++;
-                            this.money += 1;
-                            this.cars.splice(i, 1);
-                        }
-                    }
-                }
-                
-                this.checkCollisions();
-                this.drawHUD();
-            }
-
-            draw() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                
-                const roadWidth = this.upgrades.cityUpgrade ? 150 : (this.upgrades.roadUpgrade ? 150 : 100);
-                const roadStart = (canvas.width - roadWidth) / 2;
-                
-                // Рисуем перекресток (дороги)
-                ctx.fillStyle = '#607d8b';
-                ctx.fillRect(roadStart, 0, roadWidth, canvas.height); 
-                ctx.fillRect(0, roadStart, canvas.width, roadWidth);  
-                
-                // Разметка (Центр)
-                ctx.strokeStyle = '#f9f9f9';
-                ctx.lineWidth = 4;
-                ctx.setLineDash([10, 10]);
-                ctx.strokeRect(roadStart, roadStart, roadWidth, roadWidth);
-                ctx.setLineDash([]); 
-
-                // Рисуем сущности
-                this.trafficLights.forEach(light => light.draw());
-                this.cars.forEach(car => car.draw());
-            }
-
-            drawHUD() {
-                document.getElementById('hud-money').textContent = this.money;
-                document.getElementById('hud-passed').textContent = this.passedCount;
-                document.getElementById('hud-crashes').textContent = this.crashCount;
-                document.getElementById('max-crashes').textContent = MAX_CRASHES;
-                
-                // Обновление кнопок магазина
-                if (!this.upgrades.roadUpgrade) {
-                    upgradeRoadButton.disabled = this.money < parseInt(upgradeRoadButton.dataset.cost);
-                } else {
-                    upgradeRoadButton.disabled = true;
-                }
-                if (!this.upgrades.cityUpgrade) {
-                    upgradeCityButton.disabled = this.money < parseInt(upgradeCityButton.dataset.cost);
-                } else {
-                    upgradeCityButton.disabled = true;
-                }
-            }
-            
-            reset() {
-                game = new Game();
-                game.money = 10;
-                gameOverScreen.style.display = 'none';
-                gameLoop();
+            if (processingComplete) {
+                 isProcessing = false;
+            } else {
+                 isProcessing = true;
             }
         }
 
-        // --- 🎧 ЦИКЛ ИГРЫ И УПРАВЛЕНИЕ ВВОДОМ ---
+        // --- ЛОГИКА DRAG & DROP (Без изменений) ---
 
-        function gameLoop() {
-            if (game.isRunning) {
-                game.update();
-                game.draw();
-                requestAnimationFrame(gameLoop);
-            }
+        function setupEventListeners() {
+            if (!canvas || !pauseButton) return; 
+
+            canvas.addEventListener('mousedown', handleClickOrDrag);
+            window.addEventListener('mousemove', doDrag);
+            window.addEventListener('mouseup', endDrag);
+
+            canvas.addEventListener('touchstart', handleClickOrDrag);
+            window.addEventListener('touchmove', doDrag);
+            window.addEventListener('touchend', endDrag);
+
+            pauseButton.onclick = togglePause;
         }
 
-        function handleKeyDown(e) {
-             if (e.key.toLowerCase() === 'r' && game && !game.isRunning) {
-                 game.reset();
-             }
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            return {
+                x: x,
+                y: y,
+                col: Math.floor(x / CELL_SIZE),
+                row: Math.floor(y / CELL_SIZE)
+            };
+        }
+
+        function handleClickOrDrag(e) {
+            e.preventDefault();
+            if (gameState === 'PAUSED' || isProcessing) return; 
+
+            const pos = getMousePos(e);
+            
+            if (gameState === 'MENU') {
+                handleMenuClick(pos);
+                return;
+            }
+
+            if (pos.row >= 0 && pos.row < GRID_SIZE && pos.col >= 0 && pos.col < GRID_SIZE && grid[pos.row] && grid[pos.row][pos.col] !== null) {
+                dragInfo = {
+                    startR: pos.row,
+                    startC: pos.col,
+                    startX: pos.x,
+                    startY: pos.y,
+                    currentX: pos.x,
+                    currentY: pos.y
+                };
+            }
         }
         
-        document.addEventListener('keydown', handleKeyDown);
-        restartButton.addEventListener('click', () => {
-             if (game && !game.isRunning) game.reset();
-        });
+        function handleMenuClick(pos) {
+            const positions = [
+                { x: 100, y: 150 }, { x: 250, y: 120 }, { x: 400, y: 150 },
+                { x: 400, y: 300 }, { x: 250, y: 350 }, { x: 100, y: 300 },
+                { x: 100, y: 450 }, { x: 250, y: 420 }, { x: 400, y: 450 },
+                { x: 250, y: 230 }
+            ];
+            
+            LEVELS.forEach((level, index) => {
+                const mapPos = positions[index];
+                const radius = 25;
+                const dist = Math.sqrt(Math.pow(pos.x - mapPos.x, 2) + Math.pow(pos.y - mapPos.y, 2));
 
-        // Открытие/закрытие магазина
-        shopButton.addEventListener('click', () => {
-            shopContainer.style.display = 'flex';
-        });
-        closeShopButton.addEventListener('click', () => {
-            shopContainer.style.display = 'none';
-        });
-
-        // Покупка улучшений
-        document.querySelectorAll('.buy-button').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const cost = parseInt(e.target.dataset.cost);
-                const upgradeType = e.target.dataset.upgrade;
-                
-                if (game.buyUpgrade(upgradeType, cost)) {
-                    // Пересоздаем машины, чтобы они корректно встали на новые полосы
-                    game.cars.forEach(car => car.setInitialPosition()); 
-                    shopContainer.style.display = 'none';
+                if (dist < radius) {
+                    if (level.unlocked) {
+                        initLevel(level.id);
+                    } else {
+                        alert("Уровень заблокирован! Пройдите предыдущий уровень, чтобы открыть этот.");
+                    }
                 }
             });
-        });
+        }
 
-
-        canvas.addEventListener('mousedown', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            game.handleInput(mouseX, mouseY);
-        });
-
-
-        // --- ЗАПУСК ---
-        window.onload = () => {
-            game = new Game();
-            game.money = 10; 
-            game.spawnCar();
-            gameLoop();
+        function doDrag(e) {
+            if (!dragInfo) return;
+            e.preventDefault();
             
-            game.updateTrafficLightPositions();
-        };
+            const pos = getMousePos(e);
+            dragInfo.currentX = pos.x;
+            dragInfo.currentY = pos.y;
+        }
 
+        function endDrag(e) {
+            if (!dragInfo || gameState !== 'PLAYING' || isProcessing) return;
+            e.preventDefault();
+
+            const { startR, startC, startX, startY, currentX, currentY } = dragInfo;
+
+            const deltaX = currentX - startX;
+            const deltaY = currentY - startY;
+
+            let endR = startR;
+            let endC = startC;
+
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWAP_THRESHOLD) {
+                endC += (deltaX > 0 ? 1 : -1);
+            } else if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > SWAP_THRESHOLD) {
+                endR += (deltaY > 0 ? 1 : -1);
+            }
+
+            if (endR >= 0 && endR < GRID_SIZE && endC >= 0 && endC < GRID_SIZE) {
+                const targetCell = { row: endR, col: endC };
+                const startCell = { row: startR, col: startC };
+
+                if (isAdjacent(startCell, targetCell)) {
+                    attemptSwap(startCell, targetCell);
+                }
+            }
+            
+            dragInfo = null; 
+        }
+
+        function isAdjacent(c1, c2) {
+            const rowDiff = Math.abs(c1.row - c2.row);
+            const colDiff = Math.abs(c1.col - c2.col);
+            return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+        }
+
+        // --- ФУНКЦИЯ ОБМЕНА: БЛОК А (Гарантированный откат) ---
+        function attemptSwap(c1, c2) {
+            const crystal1 = grid[c1.row][c1.col];
+            const crystal2 = grid[c2.row][c2.col];
+
+            if (!crystal1 || !crystal2) return;
+            isProcessing = true; 
+
+            // Сохраняем исходные координаты для отката
+            const startR1 = crystal1.r; const startC1 = crystal1.c;
+            const startR2 = crystal2.r; const startC2 = crystal2.c;
+
+            // 1. Устанавливаем целевые координаты для анимации обмена (targetR/targetC)
+            crystal1.targetR = c2.row; crystal1.targetC = c2.col;
+            crystal2.targetR = c1.row; crystal2.targetC = c1.col;
+
+            // 2. Временно меняем ссылки в сетке для ПРОВЕРКИ совпадения
+            [grid[c1.row][c1.col], grid[c2.row][c2.col]] = [crystal2, crystal1];
+            
+            const matches = findAllMatches();
+            
+            if (matches.length > 0) {
+                // Успешный обмен: Ссылки остаются на новых местах в grid. 
+                handleMatches(matches);
+            } else {
+                // БЛОК A: НЕУДАЧНЫЙ ОБМЕН (ОТКАТ)
+                
+                // 3. Возвращаем ссылки в сетке на исходные места НЕМЕДЛЕННО
+                [grid[c1.row][c1.col], grid[c2.row][c2.col]] = [crystal1, crystal2];
+                
+                // 4. Сбрасываем целевые координаты на ИСХОДНЫЕ
+                crystal1.targetR = startR1; crystal1.targetC = startC1;
+                crystal2.targetR = startR2; crystal2.targetC = startC2;
+                
+                // 5. Устанавливаем r/c в *промежуточное* положение для начала обратной анимации
+                crystal1.r = startR2; crystal1.c = startC2;
+                crystal2.r = startR1; crystal2.c = startC1;
+                
+                // КОНЕЦ БЛОКА A
+            }
+        }
+        
+        // --- ЛОГИКА СОВПАДЕНИЙ И ПАДЕНИЯ (Без изменений) ---
+
+        function findAllMatches() {
+            const matches = []; 
+            const ignoredTypes = [-1]; 
+            
+            // Горизонтальная проверка
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c <= GRID_SIZE - 3; c++) {
+                    const type = grid[r][c]?.type;
+                    if (ignoredTypes.includes(type) || !grid[r][c + 1] || !grid[r][c + 2]) continue;
+
+                    if (type === grid[r][c + 1].type && type === grid[r][c + 2].type) {
+                        let length = 3;
+                        let nextC = c + 3;
+                        while (nextC < GRID_SIZE && grid[r][nextC] && grid[r][nextC].type === type) {
+                            length++;
+                            nextC++;
+                        }
+                        matches.push({ r, c, length, direction: 'horizontal', type });
+                        c = nextC - 1; 
+                    }
+                }
+            }
+
+            // Вертикальная проверка
+            for (let c = 0; c < GRID_SIZE; c++) {
+                for (let r = 0; r <= GRID_SIZE - 3; r++) {
+                    const type = grid[r][c]?.type;
+                    if (ignoredTypes.includes(type) || !grid[r + 1][c] || !grid[r + 2][c]) continue;
+                    
+                    if (type === grid[r + 1][c].type && type === grid[r + 2][c].type) {
+                        let length = 3;
+                        let nextR = r + 3;
+                        while (nextR < GRID_SIZE && grid[nextR][c] && grid[nextR][c].type === type) {
+                            length++;
+                            nextR++;
+                        }
+                        matches.push({ r, c, length, direction: 'vertical', type });
+                        r = nextR - 1; 
+                    }
+                }
+            }
+            return matches;
+        }
+
+        function handleMatches(matches) {
+            const cellsToClear = new Set();
+            
+            const energyMatches = matches.filter(m => m.type === 7 && m.length >= 3);
+            
+            if (energyMatches.length > 0) {
+                energyMatches.forEach(match => {
+                    for (let i = 0; i < match.length; i++) {
+                        let r = match.r + (match.direction === 'vertical' ? i : 0);
+                        let c = match.c + (match.direction === 'horizontal' ? i : 0);
+                        cellsToClear.add(`${r},${c}`); 
+                    }
+                    const centerR = match.r + (match.direction === 'vertical' ? 1 : 0);
+                    const centerC = match.c + (match.direction === 'horizontal' ? 1 : 0);
+                    activateEnergyCrystal({r: centerR, c: centerC}, cellsToClear);
+                });
+            } else {
+                createSpecialCrystals(matches, cellsToClear);
+            }
+            
+            const activatedCells = Array.from(cellsToClear).filter(coord => {
+                const [r, c] = coord.split(',').map(Number);
+                const type = grid[r][c]?.type;
+                return type === 6 || type === 7;
+            });
+
+            activatedCells.forEach(coord => {
+                const [r, c] = coord.split(',').map(Number);
+                const crystal = grid[r][c];
+                if (crystal && (crystal.type === 6 || crystal.type === 7)) {
+                    activateEnergyCrystal({r, c}, cellsToClear);
+                }
+            });
+
+            cellsToClear.forEach(coord => {
+                const [r, c] = coord.split(',').map(Number);
+                const crystal = grid[r][c];
+                if (crystal) {
+                    crystal.isBooming = true;
+                    crystal.targetR = r;
+                    crystal.targetC = c;
+                    crystal.r = r;
+                    crystal.c = c;
+                }
+            });
+            
+            score += cellsToClear.size * 10;
+            updateHUD();
+
+            setTimeout(() => {
+                checkLevelCompletion();
+                dropCrystals();
+            }, 300); 
+        }
+        
+        function checkLevelCompletion() {
+            const current = LEVELS.find(l => l.id === currentLevel);
+            if (score >= current.target) {
+                alert(`Уровень ${currentLevel} пройден!`);
+                const nextLevel = LEVELS.find(l => l.id === currentLevel + 1);
+                if (nextLevel) {
+                    nextLevel.unlocked = true;
+                    gameState = 'MENU';
+                    currentLevel++;
+                } else {
+                    alert("Поздравляем! Вы прошли всю игру!");
+                    gameState = 'MENU';
+                }
+            }
+        }
+
+        function createSpecialCrystals(matches, cellsToClear) {
+            matches.forEach(match => {
+                const type = match.type;
+                let typeToCreate = null;
+
+                if (type >= 0 && type < CRYSTAL_TYPES) {
+                    typeToCreate = match.length >= 4 ? 6 : 7; 
+                } 
+
+                for (let i = 0; i < match.length; i++) {
+                     let r = match.r + (match.direction === 'vertical' ? i : 0);
+                     let c = match.c + (match.direction === 'horizontal' ? i : 0);
+                     cellsToClear.add(`${r},${c}`);
+                }
+
+                if (typeToCreate) {
+                    const newR = match.r;
+                    const newC = match.c;
+
+                    if (grid[newR][newC]?.type !== 6 && grid[newR][newC]?.type !== 7) {
+                        grid[newR][newC] = new Crystal(newR, newC, typeToCreate, type); 
+                        cellsToClear.delete(`${newR},${newC}`); 
+                    }
+                }
+            });
+        }
+
+        function activateEnergyCrystal(activatedCell, cellsToClear) {
+            const R = activatedCell.r;
+            const C = activatedCell.c;
+            
+            for (let r = R - 1; r <= R + 1; r++) {
+                for (let c = C - 1; c <= C + 1; c++) {
+                    if (r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE) {
+                        cellsToClear.add(`${r},${c}`); 
+                    }
+                }
+            }
+        }
+
+        function dropCrystals() {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                let emptyRow = GRID_SIZE - 1;
+                for (let r = GRID_SIZE - 1; r >= 0; r--) {
+                    const crystal = grid[r][c];
+                    if (crystal) {
+                        if (r !== emptyRow) {
+                            grid[emptyRow][c] = crystal;
+                            grid[r][c] = null; 
+                            
+                            crystal.targetR = emptyRow; 
+                            crystal.targetC = c;
+                            
+                            crystal.yOffset = (r - emptyRow) * CELL_SIZE; 
+                            
+                            crystal.r = emptyRow;
+                            crystal.c = c;
+                        }
+                        emptyRow--;
+                    }
+                }
+            }
+            
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (grid[r][c] === null) {
+                        const newType = Math.floor(Math.random() * CRYSTAL_TYPES);
+                        const newCrystal = new Crystal(r, c, newType, newType);
+                        
+                        newCrystal.yOffset = -(r + 1) * CELL_SIZE;
+                        newCrystal.targetR = r;
+                        newCrystal.targetC = c;
+                        
+                        grid[r][c] = newCrystal;
+                    }
+                }
+            }
+            
+            setTimeout(() => {
+                const newMatches = findAllMatches();
+                
+                if (newMatches.length > 0) {
+                    handleMatches(newMatches);
+                } 
+            }, 500); 
+        }
+
+        function updateHUD() {
+            if (scoreValue && targetValue) {
+                scoreValue.textContent = score;
+                const current = LEVELS.find(l => l.id === currentLevel);
+                targetValue.textContent = current ? current.target : '—';
+            }
+        }
+
+        // --- ЗАПУСК ИГРЫ ---
+        
+        document.addEventListener('DOMContentLoaded', startGame); 
     </script>
 </body>
 </html>
