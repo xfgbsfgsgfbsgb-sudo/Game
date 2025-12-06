@@ -17,7 +17,7 @@
         }
         canvas {
             border: 5px solid #2c3e50;
-            background-color: #7f8c8d; /* Цвет асфальта */
+            background-color: #7f8c8d; 
         }
         #hud {
             position: absolute;
@@ -32,7 +32,7 @@
             z-index: 10;
         }
         #shop-button {
-            background-color: #f39c12; /* Оранжевый */
+            background-color: #f39c12; 
             color: white;
             padding: 8px 15px;
             border: none;
@@ -61,10 +61,16 @@
         }
         .upgrade-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column; /* Изменено для лучшего отображения */
+            align-items: flex-start;
             padding: 10px 0;
             border-bottom: 1px solid #555;
+        }
+        .item-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 5px;
         }
         .buy-button {
             padding: 8px 10px;
@@ -74,6 +80,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
+            align-self: flex-end; /* Кнопка справа */
         }
         .buy-button:disabled {
             background-color: #e74c3c;
@@ -87,9 +94,30 @@
             font-size: 24px;
             cursor: pointer;
         }
-
         #game-over-screen {
-            display: none; /* Убираем экран окончания, так как игра бесконечная */
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: none; 
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            border: 5px solid #e74c3c;
+            text-align: center;
+            z-index: 20;
+        }
+        #restart-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 24px;
+            cursor: pointer;
+            background-color: #2ecc71;
+            border: none;
+            border-radius: 5px;
+            color: white;
         }
     </style>
 </head>
@@ -99,21 +127,36 @@
     <div id="hud">
         Монеты: <span id="hud-money" style="color:#f1c40f;">0</span> |
         Пропущено: <span id="hud-passed" style="color:#2ecc71;">0</span> |
-        Аварии: <span id="hud-crashes" style="color:#e74c3c;">0</span>
+        Аварии: <span id="hud-crashes" style="color:#e74c3c;">0</span> / <span id="max-crashes">3</span>
         <button id="shop-button">🛒 Магазин</button>
     </div>
     
     <div id="shop-container">
         <button class="close-shop">X</button>
         <h3>Магазин Улучшений</h3>
+        
         <div class="upgrade-item" id="upgrade-road">
-            <span>Больше дорог (Две полосы!)</span>
-            <button class="buy-button" data-cost="50" data-upgrade="road">Купить (50 💰)</button>
+            <div class="item-info">
+                <span>**Улучшение Дорог** (Две полосы!)</span>
+                <button class="buy-button" data-cost="50" data-upgrade="road">Купить (50 💰)</button>
+            </div>
+            <p style="font-size:12px; margin:0; color:#aaa;">*Увеличивает вместимость перекрестка. Накапливаемый доход увеличивается.</p>
         </div>
-        <div class="upgrade-item" id="upgrade-speed">
-            <span>Ускоренный спавн машин</span>
-            <button class="buy-button" data-cost="100" data-upgrade="speed" disabled>Купить (100 💰) - скоро</button>
+        
+        <div class="upgrade-item" id="upgrade-city">
+            <div class="item-info">
+                <span>**Городская развязка** (Много дорог и светофоров!)</span>
+                <button class="buy-button" data-cost="250" data-upgrade="city">Купить (250 💰)</button>
+            </div>
+            <p style="font-size:12px; margin:0; color:#aaa;">*Сильно увеличивает поток машин и сложность. Больше машин = больше денег!</p>
         </div>
+    </div>
+
+    <div id="game-over-screen">
+        <h2 style="color: #e74c3c;">💥 ИГРА ОКОНЧЕНА. Слишком много аварий.</h2>
+        <p>Вы пропустили: <span id="final-passed">0</span> машин.</p>
+        <p style="font-size: 20px; color: #aaa;">Спасибо за управление трафиком!</p>
+        <button id="restart-button">Начать заново</button>
     </div>
 
     <script>
@@ -123,6 +166,11 @@
         const shopContainer = document.getElementById('shop-container');
         const closeShopButton = document.querySelector('.close-shop');
         const upgradeRoadButton = document.querySelector('.buy-button[data-upgrade="road"]');
+        const upgradeCityButton = document.querySelector('.buy-button[data-upgrade="city"]');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const restartButton = document.getElementById('restart-button');
+        
+        const MAX_CRASHES = 3; 
 
         let game;
         
@@ -156,19 +204,21 @@
             }
             
             setInitialPosition() {
-                const roadWidth = game.upgrades.roadUpgrade ? 150 : 100;
+                // Если куплено "Городская развязка", используем широкую дорогу (150)
+                const roadWidth = game.upgrades.cityUpgrade ? 150 : (game.upgrades.roadUpgrade ? 150 : 100);
                 const roadStart = (canvas.width - roadWidth) / 2;
                 
+                const hasTwoLanes = game.upgrades.roadUpgrade || game.upgrades.cityUpgrade;
+
                 if (this.road === 'horizontal') {
-                    if (!game.upgrades.roadUpgrade) {
+                    if (!hasTwoLanes) {
                         this.y = this.direction === 1 ? roadStart + 50 : roadStart + 0;
                     } else {
                         const y_offset = this.lane === 1 ? 50 : 20;
                         this.y = this.direction === 1 ? roadStart + roadWidth - y_offset : roadStart + y_offset - this.height;
                     }
-
                 } else { // vertical
-                    if (!game.upgrades.roadUpgrade) {
+                    if (!hasTwoLanes) {
                         this.x = this.direction === 1 ? roadStart + 0 : roadStart + 50;
                     } else {
                         const x_offset = this.lane === 1 ? 50 : 20;
@@ -198,7 +248,7 @@
             isApproachingStop(trafficLight) {
                 if (trafficLight.isGreen) return false;
                 
-                const roadWidth = game.upgrades.roadUpgrade ? 150 : 100;
+                const roadWidth = game.upgrades.cityUpgrade ? 150 : (game.upgrades.roadUpgrade ? 150 : 100);
                 const roadStart = (canvas.width - roadWidth) / 2;
                 const crossEnd = roadStart + roadWidth;
 
@@ -210,7 +260,7 @@
                          if (this.x < roadStart) return false;
                          if (this.x < crossEnd + 5) return true; 
                     }
-                } else { // Vertical road
+                } else { 
                     if (this.direction === 1) {
                          if (this.y > crossEnd) return false; 
                          if (this.y + this.height > roadStart - 5) return true;
@@ -222,7 +272,6 @@
                 return false;
             }
 
-            // --- НОВАЯ ФУНКЦИЯ: РИСОВАНИЕ С УЛУЧШЕННОЙ ГРАФИКОЙ ---
             draw() {
                 // Основной кузов
                 ctx.fillStyle = this.color;
@@ -234,12 +283,12 @@
                 ctx.fillStyle = '#333';
                 if (isHorizontal) {
                     const wheelY = this.y + this.height - 5;
-                    ctx.fillRect(this.x + 5, wheelY, 5, 5); // Переднее
-                    ctx.fillRect(this.x + this.width - 10, wheelY, 5, 5); // Заднее
+                    ctx.fillRect(this.x + 5, wheelY, 5, 5); 
+                    ctx.fillRect(this.x + this.width - 10, wheelY, 5, 5); 
                 } else {
                     const wheelX = this.x + this.width - 5;
-                    ctx.fillRect(wheelX, this.y + 5, 5, 5); // Верхнее
-                    ctx.fillRect(wheelX, this.y + this.height - 10, 5, 5); // Нижнее
+                    ctx.fillRect(wheelX, this.y + 5, 5, 5); 
+                    ctx.fillRect(wheelX, this.y + this.height - 10, 5, 5); 
                 }
 
                 // 2. Окна (Светло-голубой)
@@ -252,14 +301,14 @@
 
                 // 3. Фары (Желтый/Красный)
                 if (!this.isCrashed) {
-                    const lightColor = this.direction === 1 ? '#FFFF00' : '#FF0000'; // Вперед: желтый, Назад: красный
+                    const lightColor = this.direction === 1 ? '#FFFF00' : '#FF0000'; 
                     ctx.fillStyle = lightColor;
                     if (isHorizontal) {
-                        if (this.direction === 1) ctx.fillRect(this.x + this.width - 5, this.y + 5, 5, 5); // Передние (вправо)
-                        else ctx.fillRect(this.x, this.y + 5, 5, 5); // Передние (влево)
+                        if (this.direction === 1) ctx.fillRect(this.x + this.width - 5, this.y + 5, 5, 5);
+                        else ctx.fillRect(this.x, this.y + 5, 5, 5); 
                     } else {
-                        if (this.direction === 1) ctx.fillRect(this.x + 5, this.y + this.height - 5, 5, 5); // Передние (вниз)
-                        else ctx.fillRect(this.x + 5, this.y, 5, 5); // Передние (вверх)
+                        if (this.direction === 1) ctx.fillRect(this.x + 5, this.y + this.height - 5, 5, 5);
+                        else ctx.fillRect(this.x + 5, this.y, 5, 5);
                     }
                 }
 
@@ -270,7 +319,6 @@
                     ctx.fillText('💥', this.x + 5, this.y + this.height / 2 + 5);
                 }
             }
-            // --- КОНЕЦ ФУНКЦИИ РИСОВАНИЯ ---
         }
 
         class TrafficLight {
@@ -315,9 +363,11 @@
                 this.isRunning = true;
                 this.spawnTimer = 0;
                 this.lastToggleTime = Date.now();
+                this.initialSpawnRate = 40;
                 
                 this.upgrades = {
-                    roadUpgrade: false,
+                    roadUpgrade: false, // 50 монет
+                    cityUpgrade: false, // 250 монет
                 };
             }
             
@@ -333,11 +383,28 @@
                     this.updateTrafficLightPositions();
                     return true;
                 }
+                
+                if (upgradeType === 'city' && !this.upgrades.cityUpgrade) {
+                    this.money -= cost;
+                    this.upgrades.cityUpgrade = true;
+                    
+                    // Активируем эффект: двойные дороги И ускоренный трафик
+                    this.upgrades.roadUpgrade = true; // "Много дорог" включает и две полосы
+                    this.initialSpawnRate = 20; // Ускоряем спавн в 2 раза
+                    
+                    upgradeRoadButton.disabled = true; // Делаем "Больше дорог" неактивным
+                    upgradeRoadButton.textContent = 'КУПЛЕНО (часть)';
+                    upgradeCityButton.disabled = true;
+                    upgradeCityButton.textContent = 'КУПЛЕНО!';
+                    
+                    this.updateTrafficLightPositions();
+                    return true;
+                }
                 return false;
             }
             
             updateTrafficLightPositions() {
-                 const roadWidth = 150;
+                 const roadWidth = this.upgrades.cityUpgrade ? 150 : (this.upgrades.roadUpgrade ? 150 : 100);
                  const roadStart = (canvas.width - roadWidth) / 2;
                  this.trafficLights.find(l => l.road === 'horizontal').x = roadStart - 10 - 20;
                  this.trafficLights.find(l => l.road === 'vertical').x = roadStart + roadWidth + 10;
@@ -368,8 +435,10 @@
             spawnCar() {
                 const roadType = Math.random() < 0.5 ? 'horizontal' : 'vertical';
                 let lane = 1; 
+                
+                const hasTwoLanes = this.upgrades.roadUpgrade || this.upgrades.cityUpgrade;
 
-                if (this.upgrades.roadUpgrade) {
+                if (hasTwoLanes) {
                     lane = Math.random() < 0.5 ? 1 : 2; 
                 }
 
@@ -377,7 +446,8 @@
             }
 
             checkCollisions() {
-                for (let i = 0; i < this.cars.length; i++) {
+                // ... (логика столкновений остается без изменений)
+                 for (let i = 0; i < this.cars.length; i++) {
                     const car1 = this.cars[i];
                     if (car1.isCrashed) continue;
 
@@ -413,15 +483,25 @@
                 setTimeout(() => {
                     this.cars = this.cars.filter(c => !c.isCrashed);
                 }, 1000); 
+
+                // Возвращаем Game Over при достижении лимита аварий
+                if (this.crashCount >= MAX_CRASHES) {
+                    this.endGame();
+                }
             }
             
-            // Убрана функция checkBonus
+            endGame() {
+                 this.isRunning = false;
+                 document.getElementById('final-passed').textContent = this.passedCount;
+                 gameOverScreen.style.display = 'flex';
+            }
 
             update() {
                 if (!this.isRunning || shopContainer.style.display === 'flex') return;
 
                 this.spawnTimer++;
-                if (this.spawnTimer > 40) {
+                // Использование переменной скорости спавна
+                if (this.spawnTimer > this.initialSpawnRate) { 
                     this.spawnCar();
                     this.spawnTimer = 0;
                 }
@@ -450,14 +530,12 @@
                 
                 this.checkCollisions();
                 this.drawHUD();
-                
-                // Убрана проверка на окончание игры
             }
 
             draw() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                const roadWidth = this.upgrades.roadUpgrade ? 150 : 100;
+                const roadWidth = this.upgrades.cityUpgrade ? 150 : (this.upgrades.roadUpgrade ? 150 : 100);
                 const roadStart = (canvas.width - roadWidth) / 2;
                 
                 // Рисуем перекресток (дороги)
@@ -481,17 +559,25 @@
                 document.getElementById('hud-money').textContent = this.money;
                 document.getElementById('hud-passed').textContent = this.passedCount;
                 document.getElementById('hud-crashes').textContent = this.crashCount;
+                document.getElementById('max-crashes').textContent = MAX_CRASHES;
                 
+                // Обновление кнопок магазина
                 if (!this.upgrades.roadUpgrade) {
                     upgradeRoadButton.disabled = this.money < parseInt(upgradeRoadButton.dataset.cost);
+                } else {
+                    upgradeRoadButton.disabled = true;
+                }
+                if (!this.upgrades.cityUpgrade) {
+                    upgradeCityButton.disabled = this.money < parseInt(upgradeCityButton.dataset.cost);
+                } else {
+                    upgradeCityButton.disabled = true;
                 }
             }
-            
-            // Убрана функция endGame
             
             reset() {
                 game = new Game();
                 game.money = 10;
+                gameOverScreen.style.display = 'none';
                 gameLoop();
             }
         }
@@ -513,6 +599,9 @@
         }
         
         document.addEventListener('keydown', handleKeyDown);
+        restartButton.addEventListener('click', () => {
+             if (game && !game.isRunning) game.reset();
+        });
 
         // Открытие/закрытие магазина
         shopButton.addEventListener('click', () => {
@@ -523,15 +612,17 @@
         });
 
         // Покупка улучшений
-        upgradeRoadButton.addEventListener('click', (e) => {
-            const cost = parseInt(e.target.dataset.cost);
-            const upgradeType = e.target.dataset.upgrade;
-            
-            if (game.buyUpgrade(upgradeType, cost)) {
-                game.cars.forEach(car => car.setInitialPosition());
-                alert(`Куплено улучшение: ${upgradeType}! Дороги расширены!`);
-                shopContainer.style.display = 'none';
-            }
+        document.querySelectorAll('.buy-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const cost = parseInt(e.target.dataset.cost);
+                const upgradeType = e.target.dataset.upgrade;
+                
+                if (game.buyUpgrade(upgradeType, cost)) {
+                    // Пересоздаем машины, чтобы они корректно встали на новые полосы
+                    game.cars.forEach(car => car.setInitialPosition()); 
+                    shopContainer.style.display = 'none';
+                }
+            });
         });
 
 
